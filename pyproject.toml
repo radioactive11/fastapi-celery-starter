@@ -1,0 +1,17 @@
+[project]
+name = "fastapi-celery-starter"
+version = "0.1.0"
+description = "A basic FastAPI app with Celery integration"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn>=0.24.0",
+    "celery>=5.3.0",
+    "redis>=5.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
