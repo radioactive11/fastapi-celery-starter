@@ -11,11 +11,14 @@ env:
   IMAGE_NAME: asia-south1-docker.pkg.dev/argon-sandbox/argon-2aef86b2/demo-web
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      sha_short: ${{ steps.vars.outputs.sha_short }}
 
     steps:
       - name: Checkout code
@@ -50,7 +53,15 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Trigger Squark Deployment
+      - name: Set image output
+        id: image
+        run: echo "image=${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha_short }}" >> $GITHUB_OUTPUT
+
+  deploy-demo-web:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy demo-web
         run: |
           curl -X POST "https://a5b50a5d8484.ngrok-free.app/api/webhooks/deploy" \
             -H "Content-Type: application/json" \
@@ -59,10 +70,32 @@ jobs:
           {
             "application_id": "faa7a8d3-95f1-4a9a-b7f0-14e673b8ffae",
             "cluster_id": "2aef86b2-4d51-4408-b655-ea9bf8812ec0",
-            "image": "${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha_short }}",
+            "image": "${{ needs.build.outputs.image }}",
             "commit_sha": "${{ github.sha }}",
             "commit_message": "${{ github.event.head_commit.message }}",
             "branch": "${{ github.ref_name }}",
             "triggered_by": "${{ github.actor }}"
           }
           EOF
+
+  deploy-demo-worker:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy demo-worker
+        run: |
+          curl -X POST "https://a5b50a5d8484.ngrok-free.app/api/webhooks/deploy" \
+            -H "Content-Type: application/json" \
+            -H "X-Squark-Signature: ${{ secrets.SQUARK_WEBHOOK_SECRET }}" \
+            -d @- <<EOF
+          {
+            "application_id": "dfcd8bab-e426-4b02-bbce-23632f8df01f",
+            "cluster_id": "2aef86b2-4d51-4408-b655-ea9bf8812ec0",
+            "image": "${{ needs.build.outputs.image }}",
+            "commit_sha": "${{ github.sha }}",
+            "commit_message": "${{ github.event.head_commit.message }}",
+            "branch": "${{ github.ref_name }}",
+            "triggered_by": "${{ github.actor }}"
+          }
+          EOF
+
