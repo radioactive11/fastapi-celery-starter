@@ -1,22 +1,21 @@
-# Use Python 3.11 slim image as base
-FROM python:3.11-slim
+FROM python:3.12-slim-bullseye
 
-# Set working directory
+
+RUN apt-get update -y \
+    && apt-get install -y libpq-dev gcc \
+    && pip install uv
+
 WORKDIR /app
 
-# Install uv
-RUN pip install --no-cache-dir uv
+COPY pyproject.toml uv.lock ./
 
-# Copy project files
-COPY pyproject.toml ./
-COPY app ./app
 
-# Install dependencies using uv
-RUN uv pip install --system -r pyproject.toml
+ENV VIRTUAL_ENV=/app/.venv
+ENV PATH=$VIRTUAL_ENV/bin:$PATH
+RUN uv venv $VIRTUAL_ENV \
+    && uv sync --locked
 
-# Expose port for FastAPI
-EXPOSE 8000
 
-# Default command runs FastAPI server
-# To run Celery worker instead, override with: celery -A app.celery_app worker --loglevel=info
+COPY . .
+
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
