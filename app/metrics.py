@@ -24,6 +24,12 @@ celery_tasks_completed_total = Counter(
     ['task_name', 'status']
 )
 
+# Gauge: Last generated random number (for testing metric collection)
+random_number_gauge = Gauge(
+    'random_number_value',
+    'Last generated random number'
+)
+
 # Gauge: Current active requests
 active_requests = Gauge(
     'active_requests',

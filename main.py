@@ -1,3 +1,6 @@
+import random
+
+import sentry_sdk
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -5,7 +8,15 @@ from app.celery_worker import _add
 from app.metrics import (
     MetricsMiddleware,
     celery_tasks_submitted_total,
+    random_number_gauge,
     metrics_response,
+)
+
+sentry_sdk.init(
+    dsn="https://1e28884b84317bfe38881a70b233adf3@sentry.k8s.radioactive11.com/1",
+    # Add data like request headers and IP for users, if applicable;
+    # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+    send_default_pii=True,
 )
 
 # Create FastAPI app
@@ -64,6 +75,14 @@ def trigger_add_task(request: AddRequest):
     )
 
 
+@app.get("/random")
+def get_random_number():
+    """Generate a random number and push it to a Prometheus gauge metric."""
+    value = random.randint(1, 100)
+    random_number_gauge.set(value)
+    return {"random_number": value}
+
+
 @app.get("/metrics")
 def metrics():
     """Prometheus metrics endpoint"""
@@ -82,3 +101,8 @@ def root():
             "docs": "/docs - API documentation",
         },
     }
+
+
+@app.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1 / 0
