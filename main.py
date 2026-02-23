@@ -48,7 +48,7 @@ class TaskResponse(BaseModel):
 @app.get("/health")
 def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "message": "FastAPI is running"}
+    return {"status": "very healthy", "message": "FastAPI is running"}
 
 
 @app.post("/add", response_model=TaskResponse)
