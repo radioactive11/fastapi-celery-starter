@@ -1,4 +1,5 @@
 import random
+import sys
 
 import sentry_sdk
 from fastapi import FastAPI
@@ -12,6 +13,12 @@ from app.metrics import (
     metrics_response,
     random_number_gauge,
 )
+
+_GCP_LOG_FORMAT = (
+    "{level:<.1}{time:MMDD HH:mm:ss.SSSSSS} {process} {name}:{line}] {message}"
+)
+
+logger.add(sys.stdout, format=_GCP_LOG_FORMAT, colorize=True, backtrace=False)
 
 sentry_sdk.init(
     dsn="https://1e28884b84317bfe38881a70b233adf3@sentry.k8s.radioactive11.com/1",
