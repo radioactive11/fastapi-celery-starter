@@ -2,14 +2,15 @@ import random
 
 import sentry_sdk
 from fastapi import FastAPI
+from loguru import logger
 from pydantic import BaseModel
 
 from app.celery_worker import _add
 from app.metrics import (
     MetricsMiddleware,
     celery_tasks_submitted_total,
-    random_number_gauge,
     metrics_response,
+    random_number_gauge,
 )
 
 sentry_sdk.init(
@@ -106,3 +107,13 @@ def root():
 @app.get("/sentry-debug")
 async def trigger_error():
     division_by_zero = 1 / 0
+
+
+@app.get("/log")
+def _log_all_variants():
+    logger.debug("Debug log message")
+    logger.info("Info log message")
+    logger.warning("Warning log message")
+    logger.error("Error log message")
+
+    return {"message": "Logged messages at all levels"}
