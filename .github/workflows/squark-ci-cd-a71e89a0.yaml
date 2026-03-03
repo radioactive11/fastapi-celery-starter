@@ -1,0 +1,68 @@
+name: Squark CI/CD
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+env:
+  REGISTRY: asia-south1-docker.pkg.dev
+  IMAGE_NAME: asia-south1-docker.pkg.dev/project-20aba26d-10d3-491f-b63/squark-b34e8e32/mahant-api
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Get short SHA
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.CREDENTIALS_JSON_A71E89A0 }}
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha_short }}
+            ${{ env.IMAGE_NAME }}:latest
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trigger Squark Deployment
+        run: |
+          curl -X POST "https://api.squark.cloud/api/webhooks/deploy" \
+            -H "Content-Type: application/json" \
+            -H "X-Squark-Signature: ${{ secrets.SQUARK_WEBHOOK_SECRET_A71E89A0 }}" \
+            -d @- <<EOF
+          {
+            "application_id": "c10af450-d3ab-4a88-85aa-38978e33e28e",
+            "cluster_id": "b34e8e32-1ab3-4c59-bddb-029fb22be9fc",
+            "image": "${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.sha_short }}",
+            "commit_sha": "${{ github.sha }}",
+            "commit_message": "${{ github.event.head_commit.message }}",
+            "branch": "${{ github.ref_name }}",
+            "triggered_by": "${{ github.actor }}"
+          }
+          EOF
